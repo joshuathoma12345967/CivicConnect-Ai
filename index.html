@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+html_code = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -155,7 +155,7 @@
     const userInput = document.getElementById('user-input');
 
     // Toggle this to TRUE once your backend server (Flask/FastAPI/Node) is up and running!
-    const isBackendLive = false; 
+    const isBackendLive = true; 
     const BACKEND_URL = "https://wrist-unluckily-audibly.ngrok-free.dev/api/chat"; // Target endpoint URL
 
     chatForm.addEventListener('submit', async (e) => {
@@ -170,43 +170,45 @@
         // 2. Append Loading Spinner Placeholder
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'loading';
-        loadingDiv.innerText = 'Searching Greenburgh database...';
+        loadingDiv.innerText = 'Thinking...';
         chatMessages.appendChild(loadingDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
 
         // 3. Request Pipeline Logic
-        let botResponse = "";
+        try {
+            // Actual HTTP POST request architecture to talk to your backend
+            const response = await fetch(BACKEND_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: query })
+            });
 
-        if (isBackendLive) {
-            try {
-                // Actual HTTP POST request architecture to talk to your backend
-                const response = await fetch(BACKEND_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question: query })
-                });
-                const data = await response.json();
-                botResponse = data.answer; 
-            } catch (error) {
-                botResponse = "⚠️ Connection Error: Unable to communicate with the live RAG backend vector database.";
-            }
-        } else {
-            // Standalone Interactive Mock Mode (Keeps your frontend prototyping moving forward)
-            await new Promise(resolve => setTimeout(resolve, 1200)); // Simulate networking latency
-            const lowerQuery = query.toLowerCase();
+            // Remove loading indicator
+            chatMessages.removeChild(loadingDiv);
 
-            if (lowerQuery.includes('ethics')) {
-                botResponse = "For documentation regarding town ethics, please utilize these official links:\n\n• Code of Ethics: https://www.greenburghny.com/688/Code-of-Ethics\n• Ethics Forms: https://www.greenburghny.com/549/Ethics-Forms";
-            } else if (lowerQuery.includes('tree') || lowerQuery.includes('leaf')) {
-                botResponse = "The Conservation Advisory Council provides strict guidelines on environmental landscape management:\n\n• Utility Tree Cutting: Chapter 260A regulates utility trimming.\n• Leaf Blowers: Gas-fueled lawn equipment regulations can be found in the CAC resource directory.";
-            } else {
-                botResponse = `🤖 [Frontend Sandbox Mode Active] Received your query: "${query}". Once your Gemini API rate limit resets, this window will parse live vector chunks directly from the website crawl dataset!`;
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
             }
+
+            const data = await response.json();
+            console.log('Backend response:', data);
+            appendMessage(data.answer, 'bot');
+
+        } catch (error) {
+            // Remove loading indicator
+            chatMessages.removeChild(loadingDiv);
+
+            console.error('Error sending question to backend:', error);
+            let errorMessage = 'Error: An unexpected error occurred while processing your request.';
+
+            if (error instanceof TypeError && error.message === 'Failed to fetch') {
+                errorMessage = 'Error: Could not connect to the backend. Please ensure the server is running and the ngrok tunnel is active.';
+            } else if (error.message.startsWith('HTTP error!')) {
+                errorMessage = `Error: ${error.message}. Check backend logs.`;
+            }
+            appendMessage(errorMessage, 'bot');
         }
-
-        // 4. Remove Loading Indicator and Display Answer
-        chatMessages.removeChild(loadingDiv);
-        appendMessage(botResponse, 'bot');
     });
 
     function appendMessage(text, sender) {
@@ -220,4 +222,6 @@
 </script>
 
 </body>
-</html>
+</html>"""
+
+print(html_code)
