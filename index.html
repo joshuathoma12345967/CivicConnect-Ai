@@ -1,4 +1,4 @@
-html_code = """<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -12,6 +12,7 @@ html_code = """<!DOCTYPE html>
             --text-main: #ffffff;
             --text-muted: #a1a1aa;
             --border-color: #2e2e33;
+            --error-red: #ef4444;
         }
 
         body {
@@ -35,7 +36,7 @@ html_code = """<!DOCTYPE html>
             display: flex;
             flex-direction: column;
             height: 600px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
         }
 
         .chat-header {
@@ -72,6 +73,7 @@ html_code = """<!DOCTYPE html>
             border-radius: 8px;
             line-height: 1.5;
             font-size: 0.95rem;
+            word-wrap: break-word;
         }
 
         .message.user {
@@ -85,6 +87,13 @@ html_code = """<!DOCTYPE html>
             align-self: flex-start;
             border-bottom-left-radius: 2px;
             border: 1px solid var(--border-color);
+        }
+
+        .message.error {
+            background-color: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--error-red);
+            color: #fca5a5;
+            align-self: flex-start;
         }
 
         .chat-input-area {
@@ -154,74 +163,67 @@ html_code = """<!DOCTYPE html>
     const chatForm = document.getElementById('chat-form');
     const userInput = document.getElementById('user-input');
 
-    // Toggle this to TRUE once your backend server (Flask/FastAPI/Node) is up and running!
-    const isBackendLive = true; 
-    const BACKEND_URL = "https://wrist-unluckily-audibly.ngrok-free.dev/api/chat"; // Target endpoint URL
+    // 🚀 YOUR LIVE NGROK ENDPOINT:
+    const BACKEND_URL = "https://wrist-unluckily-audibly.ngrok-free.dev/api/chat";
 
     chatForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const query = userInput.value.trim();
         if (!query) return;
 
-        // 1. Append User Message to UI
+        // 1. Display user query
         appendMessage(query, 'user');
         userInput.value = '';
 
-        // 2. Append Loading Spinner Placeholder
+        // 2. Add loading indicator
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'loading';
-        loadingDiv.innerText = 'Thinking...';
+        loadingDiv.innerText = 'Searching Greenburgh database...';
         chatMessages.appendChild(loadingDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
 
-        // 3. Request Pipeline Logic
         try {
-            // Actual HTTP POST request architecture to talk to your backend
+            // 3. Send request to Flask backend with bypass headers
             const response = await fetch(BACKEND_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true',
+                    'Bypass-Tunnel-Reminder': 'true'
+                },
                 body: JSON.stringify({ question: query })
             });
 
-            // Remove loading indicator
             chatMessages.removeChild(loadingDiv);
 
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
+                throw new Error(`Server status ${response.status}`);
             }
 
             const data = await response.json();
-            console.log('Backend response:', data);
             appendMessage(data.answer, 'bot');
 
         } catch (error) {
-            // Remove loading indicator
-            chatMessages.removeChild(loadingDiv);
-
-            console.error('Error sending question to backend:', error);
-            let errorMessage = 'Error: An unexpected error occurred while processing your request.';
-
-            if (error instanceof TypeError && error.message === 'Failed to fetch') {
-                errorMessage = 'Error: Could not connect to the backend. Please ensure the server is running and the ngrok tunnel is active.';
-            } else if (error.message.startsWith('HTTP error!')) {
-                errorMessage = `Error: ${error.message}. Check backend logs.`;
+            if (chatMessages.contains(loadingDiv)) {
+                chatMessages.removeChild(loadingDiv);
             }
-            appendMessage(errorMessage, 'bot');
+            appendMessage(`Error: Could not connect to the backend. Ensure your Colab server cell is running and BACKEND_URL is up to date.`, 'error');
         }
     });
 
-    function appendMessage(text, sender) {
+    function appendMessage(text, type) {
         const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${sender}`;
-        // Replaces text newlines with HTML breaks to correctly style structured lists
-        messageDiv.innerHTML = text.replace(/\n/g, '<br>');
+        messageDiv.className = `message ${type}`;
+        
+        // Basic formatting for line breaks and web URLs
+        let formattedText = text.replace(/\n/g, '<br>');
+        formattedText = formattedText.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color: #60a5fa;">$1</a>');
+        
+        messageDiv.innerHTML = formattedText;
         chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scrolls to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 </script>
 
 </body>
-</html>"""
-
-print(html_code)
+</html>
